@@ -136,8 +136,6 @@ def aws4_signature_parts(
     return canon_req, sig_string, headers
 
 
-# TODO: Handle POST by reading body from stdin
-#
 # TODO: Add '-H' option for setting additional headers
 #
 # TODO: Add '-T' option for entering unittest mode and validating against AWS4
@@ -150,6 +148,9 @@ def main():
     ap = argparse.ArgumentParser(description='''
 Generate an 'Authorization' header for used in signing AWS requests.
 ''')
+    ap.add_argument(
+            '-d', dest='data', action='store_true', default=False,
+            help='read req body from stdin; change from GET to POST')
     ap.add_argument(
             '-k', dest='aws_key', metavar='<key>',
             help='AWS access key; defaults to $AWS_ACCESS_KEY_ID')
@@ -183,12 +184,15 @@ Generate an 'Authorization' header for used in signing AWS requests.
 
         args.aws_key_secret = os.environ['AWS_SECRET_ACCESS_KEY']
 
+    data = data.stdin.read() if args.data else ''
+    method = 'POST' if len(data) > 0 else 'GET'
+
     _, _, headers = aws4_signature_parts(
             args.aws_key,
             args.aws_key_secret,
-            'GET',
+            method,
             args.url,
-            data='',
+            data=data,
             headers=None,
             now=time.gmtime(args.time),
             region=args.region,

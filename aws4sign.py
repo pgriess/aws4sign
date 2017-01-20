@@ -136,10 +136,102 @@ def aws4_signature_parts(
     return canon_req, sig_string, headers
 
 
+def aws4_tests(test_dir):
+    '''
+    Run tests against the official AWS4 signing test suite dataset. Assumes the
+    test data has been unzipped and stored in test_dir.
+    '''
+
+    import os
+    import sys
+    import traceback
+
+    # Constants from test docs
+    key = 'AKIDEXAMPLE'
+    key_secret = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY'
+    region = 'us-east-1'
+    service = 'service'
+
+    total = 0
+    errors = 0
+    for tn in os.listdir(test_dir):
+        if tn[0] == '.':
+            continue
+
+        def read_test_req(rf):
+            req = rf.readline()
+            method, rsrc, _ = req.split(' ')
+            rsrc_up = urlparse.urlparse(rsrc)
+
+            headers = {}
+            while True:
+                l = rf.readline().strip()
+
+                if l == '':
+                    break
+
+                hn, hv = l.split(':')
+                if hn in headers:
+                    headers[hn] += ',' + hv
+                else:
+                    headers[hn] = hv
+
+            uri = urlparse.urlunparse((
+                    'http',
+                    headers['Host'],
+                    rsrc_up.path,
+                    rsrc_up.params,
+                    rsrc_up.query,
+                    rsrc_up.fragment))
+
+            body = rf.read()
+
+            return method, uri, headers, body
+
+
+        try:
+            total += 1
+
+            with open(os.path.join(test_dir, tn, tn + '.req')) as reqf:
+                method, uri, headers, body = read_test_req(reqf)
+
+            creq, sts, headers = aws4_signature_parts(
+                    key,
+                    key_secret,
+                    method,
+                    uri,
+                    headers=headers,
+                    now=time.strptime(headers['X-Amz-Date'], '%Y%m%dT%H%M%SZ'),
+                    region=region,
+                    service=service)
+            authz = headers['authorization']
+
+            with open(os.path.join(test_dir, tn, tn + '.creq')) as creqf:
+                creq_correct = creqf.read()
+            assert creq_correct == creq, \
+                    'creq was {}, expected {}'.format(creq, creq_correct)
+
+            with open(os.path.join(test_dir, tn, tn + '.sts')) as stsf:
+                sts_correct = stsf.read()
+            assert sts_correct == sts, \
+                    'sts was {}, expected {}'.format(sts, sts_correct)
+
+            with open(os.path.join(test_dir, tn, tn + '.authz')) as authzf:
+                authz_correct = authzf.read()
+            assert authz_correct == authz, \
+                    'authz was {}, expected {}'.format(authz, authz_correct)
+        except:
+            print >>sys.stderr, '>>>> Test {} failed'.format(tn)
+            traceback.print_exc()
+
+            errors += 1
+
+    print 'Passed {} / {} tests'.format(total - errors, total)
+
+    sys.exit(1 if errors > 0 else 0)
+
+
 # TODO: Add '-H' option for setting additional headers
-#
-# TODO: Add '-T' option for entering unittest mode and validating against AWS4
-#       .creq/etc directory tree
 def main():
     import argparse
     import os
@@ -167,8 +259,15 @@ Generate an 'Authorization' header for used in signing AWS requests.
     ap.add_argument(
             '-r', dest='region', metavar='<region>',
             help='AWS region name (e.g. us-east-1); default guessed from URL')
+    ap.add_argument(
+            '-T', dest='run_tests', action='store_true',
+            help='run tests instead of signing; test dir given by URL')
     ap.add_argument('url', metavar='<url>', help='URL to sign')
     args = ap.parse_args()
+
+    if args.run_tests:
+        aws4_tests(args.url)
+        return
 
     if args.aws_key is None:
         if 'AWS_ACCESS_KEY_ID' not in os.environ:

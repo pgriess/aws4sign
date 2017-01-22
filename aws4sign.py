@@ -200,6 +200,7 @@ def aws4_tests(test_dir):
                     key_secret,
                     method,
                     uri,
+                    data=body,
                     headers=headers,
                     now=time.strptime(headers['X-Amz-Date'], '%Y%m%dT%H%M%SZ'),
                     region=region,

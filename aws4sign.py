@@ -109,7 +109,7 @@ def aws4_signature_parts(
         method.upper(),
 
         # URI
-        urllib.quote(up.path),
+        urllib.quote(up.path, safe='/~'),
 
         # Query string
         #

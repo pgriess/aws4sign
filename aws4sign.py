@@ -88,11 +88,14 @@ def aws4_signature_parts(
     assert headers.get('host', up.hostname) == up.hostname
     headers['host'] = up.hostname
 
-    # Set the X-Amz-Date header
+    # Set the x-amz-date header
     assert headers.get(
         'x-amz-date',
         time.strftime('%Y%m%dT%H%M%SZ', now)) == time.strftime('%Y%m%dT%H%M%SZ', now)
     headers['x-amz-date'] = time.strftime('%Y%m%dT%H%M%SZ', now)
+
+    # Set the x-amz-content-sha256 header
+    headers['x-amz-content-sha256'] = hashlib.sha256(data).hexdigest()
 
     # Make sure we're processing headers in lexicographic order
     signed_headers = sorted(headers)
@@ -121,7 +124,7 @@ def aws4_signature_parts(
         ';'.join(signed_headers),
 
         # Signature
-        hashlib.sha256(data).hexdigest()])
+        headers['x-amz-content-sha256']])
     canon_req_hash = hashlib.sha256(canon_req).hexdigest()
 
     # Compute the string to sign

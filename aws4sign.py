@@ -181,6 +181,7 @@ def aws4_tests(test_dir):
     test data has been unzipped and stored in test_dir.
     '''
 
+    import difflib
     import os
     import sys
     import traceback
@@ -193,13 +194,27 @@ def aws4_tests(test_dir):
 
     total = 0
     errors = 0
-    for tn in os.listdir(test_dir):
-        if tn[0] == '.':
+    for dp, dnames, fnames in os.walk(test_dir):
+        files = dict([(fn.split('.')[-1], os.path.join(dp, fn)) for fn in fnames])
+        if not 'creq' in files:
+            continue
+
+        tn = os.path.basename(dp)
+
+        # There are some test cases that we just don't support because they end
+        # up being more of a test of irritating / incredibly rare HTTP minutua
+        # like multi-line headers:
+        if tn in ['get-header-value-multiline', 'get-vanilla-utf8-query']:
             continue
 
         def read_test_req(rf):
-            req = rf.readline()
-            method, rsrc, _ = req.split(' ')
+            req = rf.readline().strip()
+
+            try:
+                method, rsrc, _ = req.split(' ')
+            except ValueError:
+                raise ValueError('Failed to parse request line: "{}"'.format(req))
+
             rsrc_up = urlparse.urlparse(rsrc)
 
             headers = {}
@@ -231,7 +246,7 @@ def aws4_tests(test_dir):
         try:
             total += 1
 
-            with open(os.path.join(test_dir, tn, tn + '.req')) as reqf:
+            with open(files['req']) as reqf:
                 method, uri, headers, body = read_test_req(reqf)
 
             creq, sts, headers = aws4_signature_parts(
@@ -247,17 +262,24 @@ def aws4_tests(test_dir):
                     content_sha256_header=False)
             authz = headers['authorization']
 
-            with open(os.path.join(test_dir, tn, tn + '.creq')) as creqf:
+            with open(files['creq']) as creqf:
                 creq_correct = creqf.read()
-            assert creq_correct == creq, \
-                    'creq was {}, expected {}'.format(creq, creq_correct)
+            if creq_correct != creq:
+                diff = '\n'.join([
+                        l.strip() for l in
+                        difflib.unified_diff(
+                            creq_correct.split('\n'),
+                            creq.split('\n'),
+                            fromfile='expected',
+                            tofile='actual')])
+                raise Exception('Canonical request mismatched:\n{}'.format(diff))
 
-            with open(os.path.join(test_dir, tn, tn + '.sts')) as stsf:
+            with open(files['sts']) as stsf:
                 sts_correct = stsf.read()
             assert sts_correct == sts, \
                     'sts was {}, expected {}'.format(sts, sts_correct)
 
-            with open(os.path.join(test_dir, tn, tn + '.authz')) as authzf:
+            with open(files['authz']) as authzf:
                 authz_correct = authzf.read()
             assert authz_correct == authz, \
                     'authz was {}, expected {}'.format(authz, authz_correct)

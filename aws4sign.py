@@ -286,6 +286,10 @@ Generate an 'Authorization' header for used in signing AWS requests.
             '-r', dest='region', metavar='<region>',
             help='AWS region name (e.g. us-east-1); default guessed from URL')
     ap.add_argument(
+            '-p', dest='print_headers', metavar='<header>', action='append',
+            default=[],
+            help='print values for the given header(s); default is all')
+    ap.add_argument(
             '-T', dest='run_tests', action='store_true',
             help='run tests instead of signing; test dir given by URL')
     ap.add_argument('url', metavar='<url>', help='URL to sign')
@@ -323,7 +327,14 @@ Generate an 'Authorization' header for used in signing AWS requests.
             region=args.region,
             service=args.service)
 
-    print headers['authorization']
+    print_headers = [h.lower() for h in args.print_headers]
+    if not print_headers:
+        print_headers = headers.keys()
+
+    for hn in headers.keys():
+        if hn not in print_headers:
+            continue
+        print '{}\t{}'.format(hn, headers[hn])
 
 
 if __name__ == '__main__':

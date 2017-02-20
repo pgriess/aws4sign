@@ -103,6 +103,14 @@ def aws4_signature_parts(
     # Make sure we're processing headers in lexicographic order
     signed_headers = sorted(headers)
 
+    # Sort the query parameters
+    sorted_query = '&'.join(
+        map(
+            lambda x: '{}={}'.format(x[0], x[1]),
+            sorted(
+                urlparse.parse_qsl(up.query),
+                cmp=lambda a, b: cmp(a[0], b[0]))))
+
     # Compute a hash of the canonical request
     canon_req = '\n'.join([
         # Method
@@ -112,9 +120,7 @@ def aws4_signature_parts(
         urllib.quote(up.path, safe='/~'),
 
         # Query string
-        #
-        # XXX: Need to sort query string parameters
-        up.query,
+        sorted_query,
 
         # Headers
         ''.join([

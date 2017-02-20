@@ -42,7 +42,8 @@ def aws4_signature_parts(
         headers=None,
         now=None,
         region=None,
-        service=None):
+        service=None,
+        content_sha256_header=True):
     '''
     Return a tuple of the parts of the AWS request signature: canonical
     request, string to sign, resulting Authorization header value, and the full
@@ -95,7 +96,9 @@ def aws4_signature_parts(
     headers['x-amz-date'] = time.strftime('%Y%m%dT%H%M%SZ', now)
 
     # Set the x-amz-content-sha256 header
-    headers['x-amz-content-sha256'] = hashlib.sha256(data).hexdigest()
+    content_sha256 = hashlib.sha256(data).hexdigest()
+    if content_sha256_header:
+        headers['x-amz-content-sha256'] = content_sha256
 
     # Make sure we're processing headers in lexicographic order
     signed_headers = sorted(headers)
@@ -124,7 +127,7 @@ def aws4_signature_parts(
         ';'.join(signed_headers),
 
         # Signature
-        headers['x-amz-content-sha256']])
+        content_sha256])
     canon_req_hash = hashlib.sha256(canon_req).hexdigest()
 
     # Compute the string to sign
@@ -229,7 +232,8 @@ def aws4_tests(test_dir):
                     headers=headers,
                     now=time.strptime(headers['X-Amz-Date'], '%Y%m%dT%H%M%SZ'),
                     region=region,
-                    service=service)
+                    service=service,
+                    content_sha256_header=False)
             authz = headers['authorization']
 
             with open(os.path.join(test_dir, tn, tn + '.creq')) as creqf:

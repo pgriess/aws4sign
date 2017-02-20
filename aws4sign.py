@@ -71,15 +71,15 @@ def aws4_signature_parts(
         parts = up.hostname.split('.')
         assert parts[-1] == 'com'
         assert parts[-2] == 'amazonaws'
-        assert len(parts) == 3 or len(parts) == 4
+        assert len(parts) >= 3
         region = 'us-east-1' if len(parts) == 3 else parts[-3]
 
     if service is None:
         parts = up.hostname.split('.')
         assert parts[-1] == 'com'
         assert parts[-2] == 'amazonaws'
-        assert len(parts) == 3 or len(parts) == 4
-        service = parts[0]
+        assert len(parts) >= 3
+        service = parts[-3]
 
     # Canonicalize header names as lower-case
     headers = dict([(hn.lower(), hv) for hn, hv in headers.iteritems()])

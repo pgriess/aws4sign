@@ -103,6 +103,11 @@ def aws4_signature_parts(
     # Make sure we're processing headers in lexicographic order
     signed_headers = sorted(headers)
 
+    # Compute the path
+    path = urllib.quote(up.path, safe='/~')
+    if not path:
+        path = '/'
+
     # Sort the query parameters
     sorted_query = '&'.join(
         map(
@@ -116,8 +121,8 @@ def aws4_signature_parts(
         # Method
         method.upper(),
 
-        # URI
-        urllib.quote(up.path, safe='/~'),
+        # Path
+        path,
 
         # Query string
         sorted_query,

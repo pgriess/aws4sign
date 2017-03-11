@@ -250,7 +250,9 @@ def aws4_tests(test_dir):
             req = rf.readline().strip()
 
             try:
-                method, rsrc, _ = req.split(' ')
+                req_parts = req.split(' ')
+                method = req_parts[0]
+                rsrc = ' '.join(req_parts[1:-1])
             except ValueError:
                 raise ValueError('Failed to parse request line: "{}"'.format(req))
 

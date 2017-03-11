@@ -334,7 +334,7 @@ def aws4_tests(test_dir):
 
             errors += 1
 
-    print 'Passed {} / {} tests'.format(total - errors, total)
+    print >>sys.stderr, 'Passed {} / {} tests'.format(total - errors, total)
 
     sys.exit(1 if errors > 0 else 0)
 

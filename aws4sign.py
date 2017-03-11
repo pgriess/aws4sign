@@ -61,6 +61,10 @@ def aws4_signature_parts(
 
     up = urlparse.urlparse(url)
 
+    # Strip non-ASCII characters from the method and upper-case it
+    method = filter(lambda c: ord(c) >= 33 and ord(c) <= 126, method)
+    method = method.upper()
+
     if headers is None:
         headers = {}
     else:
@@ -154,7 +158,7 @@ def aws4_signature_parts(
     # Compute a hash of the canonical request
     canon_req = '\n'.join([
         # Method
-        method.upper(),
+        method,
 
         # Path
         path,

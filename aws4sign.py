@@ -215,6 +215,10 @@ def aws4_tests(test_dir):
             except ValueError:
                 raise ValueError('Failed to parse request line: "{}"'.format(req))
 
+            # Normalize out consecutive slashes up front, as a leading '//' can
+            # cause urlparse() to get confused and treat a naked path as a URL
+            rsrc = re.sub(r'/+', '/', rsrc)
+
             rsrc_up = urlparse.urlparse(rsrc)
 
             headers = {}

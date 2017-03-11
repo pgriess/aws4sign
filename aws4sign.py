@@ -43,7 +43,8 @@ def aws4_signature_parts(
         now=None,
         region=None,
         service=None,
-        content_sha256_header=True):
+        content_sha256_header=True,
+        normalize_path=True):
     '''
     Return a tuple of the parts of the AWS request signature: canonical
     request, string to sign, resulting Authorization header value, and the full
@@ -108,29 +109,35 @@ def aws4_signature_parts(
     # We split it into components and then arrange those components to compute
     # the final path. This makes it easier for us to handle consecutive
     # slashes, '.' and '..', etc.
-    path_parts = []
-    split_parts = urllib.quote(up.path, safe='/~').split('/')
-    for i in range(len(split_parts)):
-        sp = split_parts[i]
+    #
+    # Unless normalize_path is true. Then we just use the thing directly. S3
+    # does not use normalized paths.
+    if normalize_path:
+        path_parts = []
+        split_parts = urllib.quote(up.path, safe='/~').split('/')
+        for i in range(len(split_parts)):
+            sp = split_parts[i]
 
-        # Ignore no-op directories
-        if sp == '.':
-            continue
+            # Ignore no-op directories
+            if sp == '.':
+                continue
 
-        # If we get a '', this means we saw consecutive slashes; ignore it if
-        # we're in the middle of the pathbut allow it otherwise (at the front
-        # or the end)
-        if sp == '' and i > 0 and i < len(split_parts) - 1:
-            continue
+            # If we get a '', this means we saw consecutive slashes; ignore it if
+            # we're in the middle of the pathbut allow it otherwise (at the front
+            # or the end)
+            if sp == '' and i > 0 and i < len(split_parts) - 1:
+                continue
 
-        # Drop the last path component that we added
-        if sp == '..':
-            path_parts = path_parts[:-1]
-            continue
+            # Drop the last path component that we added
+            if sp == '..':
+                path_parts = path_parts[:-1]
+                continue
 
-        path_parts += [sp]
+            path_parts += [sp]
 
-    path = '/'.join(path_parts)
+        path = '/'.join(path_parts)
+    else:
+        path = urllib.quote(up.path, safe='/~')
 
     # Finally, make sure we're not actually empty
     if path == '':
